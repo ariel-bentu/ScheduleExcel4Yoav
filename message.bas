@@ -1,8 +1,10 @@
-Attribute VB_Name = "Messages"
+Attribute VB_Name = "Message"
+
 Const ROW_MESSAGE_START = 2
 Const COL_MESSAGE_ID = 1
 Const COL_MESSAGE_MSG = 2
 
+Const ROW_SETTINGS = 20
 
 Private myForm As UserForm1
 
@@ -39,4 +41,19 @@ Public Sub HebMsgBox(text As String)
     myForm.Show
 End Sub
 
+
+Public Function GetParam(name As String) As String
+    Dim settings As Worksheet
+    Dim i As Integer
+    i = 0
+    Set settings = ThisWorkbook.Sheets("Settings")
+    While settings.Cells(ROW_SETTINGS + i, 1).Value <> ""
+        If settings.Cells(ROW_SETTINGS + i, 1).Value = name Then
+            GetParam = settings.Cells(ROW_SETTINGS + i, 2).Value
+            Exit Function
+        End If
+        i = i + 1
+    Wend
+
+End Function
 

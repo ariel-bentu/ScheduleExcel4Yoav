@@ -1,11 +1,17 @@
 Attribute VB_Name = "MasterData"
+
 'MASTER DATA
 
 Type Facility
-    Name As String
-    Location As String
+    name As String
+    location As String
     Group As String
     ID As Integer
+End Type
+
+Type Instructor
+    name As String
+    qualifications() As String
 End Type
 
 
@@ -14,6 +20,10 @@ Private facilities(200) As Facility
 Private FacilitiesCount As Integer
 Private courses(200) As String
 Private CoursesCount As Integer
+
+Private instructors(200) As Instructor
+Private InstructorsCount As Integer
+
 
 Dim masterDataTimeStamp As Single
 
@@ -25,19 +35,24 @@ Sub initMasterData()
     Dim s As Worksheet, row As Integer
     If MasterData Is Nothing Then
     
-        Application.ScreenUpdating = False
-        On Error Resume Next
-   
     
-        Set MasterData = Workbooks.Open(ActiveWorkbook.Path & "/yoav-masterdata.xlsx", , True)
-        MasterData.Windows(1).Visible = False
-        Application.ScreenUpdating = True
+        On Error Resume Next
+        Set MasterData = Workbooks.Open(ActiveWorkbook.Path & "/masterdata.xlsx", , True)
+       If Err.Number <> 0 Then
+            HebMsgBox FormatString(12, Err.Description)
+            Exit Sub
+        End If
+         
         row = 2
         Set s = MasterData.Sheets("Facilities")
+        If Err.Number <> 0 Then
+            HebMsgBox FormatString(12, Err.Description)
+            Exit Sub
+        End If
         While s.Cells(row, 2) <> ""
             With facilities(row - 1)
-                .Location = s.Cells(row, 1).Value
-                .Name = s.Cells(row, 2).Value
+                .location = s.Cells(row, 1).Value
+                .name = s.Cells(row, 2).Value
                 .Group = s.Cells(row, 3).Value
             End With
             row = row + 1
@@ -45,16 +60,29 @@ Sub initMasterData()
         FacilitiesCount = row - 1
         
         
-       row = 1
+       row = 2
         Set s = MasterData.Sheets("Courses")
         While s.Cells(row, 1) <> ""
             courses(row) = s.Cells(row, 1).Value
             row = row + 1
         Wend
-        CoursesCount = row
+        CoursesCount = row - 1
+        
+        row = 2
+        Set s = MasterData.Sheets("Instructors")
+        While s.Cells(row, 1) <> ""
+            instructors(row).name = s.Cells(row, 1).Value
+            instructors(row).qualifications = Split(s.Cells(row, 2).Value, ",")
+            
+            row = row + 1
+        Wend
+        InstructorsCount = row - 1
+        
+    
+        
+        masterDataTimeStamp = Timer
+        MasterData.Close False
     End If
-    masterDataTimeStamp = Timer
-    MasterData.Close
     
 End Sub
 
@@ -64,24 +92,117 @@ Public Function FacilityID2Name(ID As Integer) As String
         Exit Function
     End If
     initMasterData
-    FacilityID2Name = facilities(ID).Name
+    FacilityID2Name = facilities(ID).name
 End Function
 
-Public Function FacilityName2ID(Name As String) As Integer
+Public Function Facility2GroupName(ID As Integer) As String
+    If ID < 1 Then
+        Facility2GroupName = ""
+        Exit Function
+    End If
+    initMasterData
+    Facility2GroupName = facilities(ID).Group
+End Function
+
+
+Public Function GetInstructors() As Variant
+   initMasterData
+    Dim i As Integer
+    Dim res() As String
+    ReDim res(1 To InstructorsCount)
+    
+    For i = 1 To InstructorsCount
+            res(i) = instructors(i).name
+    Next
+    
+    GetInstructors = res
+End Function
+
+Public Function InstructorHasQualifications(name As String, qualification As String) As Boolean
+    Dim i As Integer, j As Integer
+    InstructorHasQualifications = False
+    
+    For i = 1 To InstructorsCount
+            If instructors(i).name = Trim(name) Then
+                For j = LBound(instructors(i).qualifications) To UBound(instructors(i).qualifications)
+                    If InStr(instructors(i).qualifications(j), qualification) > 0 Then
+                        InstructorHasQualifications = True
+                        Exit Function
+                    End If
+                Next
+                Exit Function
+            End If
+    Next
+    
+End Function
+
+Public Function Instructor2ID(name As String) As Integer
+    Dim i As Integer
+    For i = 1 To InstructorsCount
+            If instructors(i).name = Trim(name) Then
+                Instructor2ID = i
+                Exit Function
+            End If
+    Next
+    Instructor2ID = 0
+End Function
+
+Public Function GetFacilities(location As String) As Variant
+
+    initMasterData
+    Dim i As Integer
+    Dim alloc As Boolean
+    alloc = False
+    Dim res() As String
+    
+    For i = 1 To FacilitiesCount
+        If facilities(i).location = location Then
+            If Not alloc Then
+                ReDim res(1)
+                alloc = True
+            Else
+                ReDim Preserve res(UBound(res) + 1)
+            End If
+            res(UBound(res)) = facilities(i).name
+        End If
+    Next
+    
+    GetFacilities = res
+End Function
+
+
+Public Function GetCourses() As Variant
+
+    initMasterData
+    Dim i As Integer
+    Dim alloc As Boolean
+    alloc = False
+    Dim res() As String
+    ReDim res(1 To CoursesCount)
+    
+    For i = 1 To CoursesCount
+            res(i) = courses(i)
+        
+    Next
+    
+    GetCourses = res
+End Function
+
+Public Function FacilityName2ID(name As String) As Integer
     initMasterData
     Dim i As Integer
     Dim pos As Integer
     'take only first line:
-    pos = InStr(Name, vbLf)
+    pos = InStr(name, vbLf)
     If (pos > 0) Then
-        Name = Left(Name, pos - 1)
+        name = Left(name, pos - 1)
     End If
 
-    Name = Trim(Name)
+    name = Trim(name)
     For i = 1 To FacilitiesCount
-        If facilities(i).Name = Name Then
+        If facilities(i).name = name Then
             'check if it is really a facility and not lunch etc.
-            If facilities(i).Location = "" Then
+            If facilities(i).location = "" Then
                 FacilityName2ID = 0
             Else
                 FacilityName2ID = i
@@ -102,13 +223,13 @@ Public Function CourseID2Name(ID As Integer) As String
      CourseID2Name = courses(ID)
 End Function
 
-Public Function CourseName2ID(Name As String) As Integer
+Public Function CourseName2ID(name As String) As Integer
    initMasterData
    Dim i As Integer
-   Name = Trim(Name)
+   name = Trim(name)
    row = 1
     For i = 1 To CoursesCount
-        If courses(i) = Name Then
+        If courses(i) = name Then
                 CourseName2ID = i
                 Exit Function
         End If
