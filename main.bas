@@ -1,5 +1,7 @@
 Attribute VB_Name = "Main"
 Option Explicit
+'Version 1.0
+
 
 Public Const HEADER_ROW = 1
 Public Const HOURS_START_ROW = 6
@@ -10,29 +12,33 @@ Public Const ROW_SUMMARY_INSTRUCTORS = 56
 Public Const ROW_GUIDE_START = 40
 Public Const GUIDES_COUNT = 9
 
+Public Const SHARE_SIGN = "+"
+
 Public Type TimeSlot
     length As Integer
     StartSlot As Integer
     ID As Integer
     SlotTitle As Variant
-    Color As Integer
+    Shared As Boolean
+    color As Integer
 End Type
 
 
 Public Type total
     key As String
-    Value As Single
+    value As Single
 End Type
 
 Public Type TotalList
-    Count As Integer
+    count As Integer
     Items(20) As total
 End Type
 
 Public Type Guide
     Group As String
     name As String
-    Color As Integer
+    color As Integer
+    additionalColor As Integer
 End Type
 
 Public Type Item
@@ -48,7 +54,7 @@ End Type
 
 
 Public Type List
-    Count As Integer
+    count As Integer
     Items() As Item
 End Type
 
@@ -73,33 +79,29 @@ Sub UpdateSheet(ByRef theSheet As Worksheet)
     errStr = Courses2Facilities(courses, facilities)
     If errStr <> "" Then
         HebMsgBox errStr
-        Exit Sub
     End If
       
     Facilities2UI facilities, theSheet
 End Sub
 
 Sub CalculateInstructorsTotals(ByRef courses As List)
-    'each group has one or more guides comma seperated
-    'for each guide, find the
-    
-    
     
     Dim i As Integer, j As Integer
     Dim slot As Integer, index As Integer
-    For i = 1 To courses.Count
+    For i = 1 To courses.count
         With courses.Items(i)
             For j = 1 To .GuideCount
                 For slot = 1 To .SlotCount
-                    If .Guides(j).Color = .TimeSlots(slot).Color Then
+                    If .Guides(j).color = .TimeSlots(slot).color Or _
+                        .Guides(j).additionalColor = .TimeSlots(slot).color Then
                         index = getTotalIndex(.Guides(j).name, .Totals(2))
                         If index < 0 Then
-                            .Totals(2).Count = .Totals(2).Count + 1
-                            index = .Totals(2).Count
+                            .Totals(2).count = .Totals(2).count + 1
+                            index = .Totals(2).count
                             .Totals(2).Items(index).key = .Guides(j).name
                         End If
                    
-                        .Totals(2).Items(index).Value = .Totals(2).Items(index).Value + (.TimeSlots(slot).length / 2)
+                        .Totals(2).Items(index).value = .Totals(2).Items(index).value + (.TimeSlots(slot).length / 2)
                    End If
                 Next
             Next
@@ -114,18 +116,18 @@ Sub CalculateFacilitiesTotals(ByRef courses As List)
     Dim groupName As String
     Dim i, j, index As Integer
     
-    For i = 1 To courses.Count
+    For i = 1 To courses.count
         For j = 1 To courses.Items(i).SlotCount
             With courses.Items(i)
                 groupName = Facility2GroupName(.TimeSlots(j).ID)
                 index = getTotalIndex(groupName, .Totals(1))
                 If index < 0 Then
-                    .Totals(1).Count = .Totals(1).Count + 1
-                    index = .Totals(1).Count
+                    .Totals(1).count = .Totals(1).count + 1
+                    index = .Totals(1).count
                     .Totals(1).Items(index).key = groupName
                 End If
                 
-                .Totals(1).Items(index).Value = .Totals(1).Items(index).Value + .TimeSlots(j).length / 2 'each one is half hour
+                .Totals(1).Items(index).value = .Totals(1).Items(index).value + .TimeSlots(j).length / 2 'each one is half hour
                 
             End With
         Next
@@ -135,14 +137,17 @@ End Sub
 Sub Totals2UI(ByRef theList As List, ByRef curr As Worksheet)
     Dim i As Integer, col As Integer, length As Integer
     Dim r As Range
+    On Error Resume Next
+    Application.ScreenUpdating = False
     'Clean totals
     col = 2
     curr.Range(curr.Cells(ROW_SUMMARY_HOURS, col), curr.Cells(ROW_SUMMARY_INSTRUCTORS, FACILITY_OFFSET)).Clear
     
-   For i = 1 To theList.Count
+   For i = 1 To theList.count
         length = getHowManyColToSkip(curr, col)
+
         Set r = getRange(curr, ROW_SUMMARY_HOURS, col, length, False)
-        r.Cells(1, 1).Value = getTotalString(theList.Items(i).Totals(1))
+        r.Cells(1, 1).value = getTotalString(theList.Items(i).Totals(1))
         
  
         r.Merge False
@@ -151,20 +156,23 @@ Sub Totals2UI(ByRef theList As List, ByRef curr As Worksheet)
         'r.Interior.ColorIndex = curr.Cells(ROW_SUMMARY_HOURS, 1).Interior.ColorIndex
         
         Set r = getRange(curr, ROW_SUMMARY_INSTRUCTORS, col, length, False)
-        r.Cells(1, 1).Value = getTotalString(theList.Items(i).Totals(2))
+        r.Cells(1, 1).value = getTotalString(theList.Items(i).Totals(2))
         r.Merge False
         r.HorizontalAlignment = xlRight
         r.VerticalAlignment = xlTop
         
         col = col + length
     Next
+    
+    Application.ScreenUpdating = True
+
 End Sub
 
 Function getTotalString(total As TotalList) As String
     Dim i As Integer
-    For i = 1 To total.Count
+    For i = 1 To total.count
         
-        getTotalString = getTotalString + IIf(Len(getTotalString) > 0, vbLf, "") + total.Items(i).key + ": " + CStr(total.Items(i).Value)
+        getTotalString = getTotalString + IIf(Len(getTotalString) > 0, vbLf, "") + total.Items(i).key + ": " + CStr(total.Items(i).value)
     Next
 
 End Function
@@ -178,12 +186,12 @@ End Function
 Function getHowManyColToSkip(curr As Worksheet, col As Integer) As Integer
     Dim r As Range
     Set r = curr.Cells(HEADER_ROW, col).MergeArea
-    getHowManyColToSkip = r.Columns.Count
+    getHowManyColToSkip = r.Columns.count
 End Function
 
 Function getTotalIndex(key As String, Totals As TotalList) As Integer
     Dim i As Integer
-    For i = 1 To Totals.Count
+    For i = 1 To Totals.count
         If Totals.Items(i).key = key Then
             getTotalIndex = i
             Exit Function
@@ -220,8 +228,8 @@ Public Sub HideGAP(ByRef curr As Worksheet)
         Dim ma As Range
         col = 1
         Set ma = curr.Cells(HEADER_ROW, col).MergeArea
-            While ma.Cells(1, 1).Value <> ""
-                col = col + ma.Columns.Count
+            While ma.Cells(1, 1).value <> ""
+                col = col + ma.Columns.count
                  Set ma = curr.Cells(HEADER_ROW, col).MergeArea
             Wend
         
@@ -235,16 +243,16 @@ Function UI2Courses(ByRef courses As List, ByRef curr As Worksheet) As String
     Dim headerVal As String, facilityName As String
     Dim ma As Range
     Dim SkipCols As Integer
-    
+    Dim isShared As Boolean
    For col = 2 To 100
-        headerVal = curr.Cells(HEADER_ROW, col).Value
+        headerVal = curr.Cells(HEADER_ROW, col).value
         'Debug.Print headerVal
         
         Set ma = curr.Cells(HEADER_ROW, col).MergeArea
         If ma Is Nothing Then
             SkipCols = 0
         Else
-            SkipCols = ma.Columns.Count
+            SkipCols = ma.Columns.count
         End If
         If headerVal = "" Then
             Exit For
@@ -252,35 +260,43 @@ Function UI2Courses(ByRef courses As List, ByRef curr As Worksheet) As String
             'Debug.Print "Header: " + headerVal
             MyReDim courses
             
-            courses.Count = courses.Count + 1
-            courses.Items(courses.Count).ID = CourseName2ID(headerVal)
-            If courses.Items(courses.Count).ID < 0 Then
+            courses.count = courses.count + 1
+            courses.Items(courses.count).ID = CourseName2ID(headerVal)
+            If courses.Items(courses.count).ID < 0 Then
                 UI2Courses = FormatString(3, headerVal)
                 Exit Function
             End If
-            courses.Items(courses.Count).name = headerVal
+            courses.Items(courses.count).name = headerVal
              
             
            
             For row = HOURS_START_ROW To HOURS_START_ROW + 31
                 Set ma = curr.Cells(row, col).MergeArea
-                facilityName = Trim(ma.Cells(1, 1))
-                'Debug.Print "row: " + CStr(row) + "   col:" + CStr(col) + " Name:" + facilityName
-                If (facilityName <> "" And Left(facilityName, 1) <> "*") Then
+                facilityName = BTrim(ma.Cells(1, 1))
+                If Left(facilityName, 1) = SHARE_SIGN Then
+                    facilityName = Right(facilityName, Len(facilityName) - 1)
+                    isShared = True
+                Else
+                    isShared = False
+                End If
+                
+               If (facilityName <> "" And Left(facilityName, 1) <> "*") Then
                     'add new slot to course
                     Dim slot As TimeSlot
+               
                     slot.ID = FacilityName2ID(facilityName)
                     slot.SlotTitle = facilityName
+                    slot.Shared = isShared
                     If (slot.ID = -1) Then
                         UI2Courses = FormatString(1, facilityName)
                         Exit Function
                     End If
                     If slot.ID > 0 Then
-                        slot.length = ma.Rows.Count
-                        slot.Color = ma.Interior.ColorIndex
+                        slot.length = ma.Rows.count
+                        slot.color = ma.Interior.ColorIndex
                         
                         slot.StartSlot = row - HOURS_START_ROW
-                        With courses.Items(courses.Count)
+                        With courses.Items(courses.count)
                             .SlotCount = .SlotCount + 1
                             .TimeSlots(.SlotCount) = slot
                             
@@ -290,55 +306,84 @@ Function UI2Courses(ByRef courses As List, ByRef curr As Worksheet) As String
                     'HebMsgBox FormatString(1, ma.Cells(1, 1), CStr(ma.Cells.Count))
     
  
-                    row = row + ma.Rows.Count - 1
+                    row = row + ma.Rows.count - 1
                 End If
   
             Next
             
             Dim name As String
             Dim names() As String
-            Dim n As Integer
+            Dim N As Integer
             
             'extract Guides
+            Dim defQ As String
+            defQ = GetParam("Default Q")
+            Dim errStr As String
             For row = ROW_GUIDE_START To ROW_GUIDE_START + GUIDES_COUNT
                 Set ma = curr.Cells(row, col).MergeArea
                 name = ma.Cells(1, 1)
                 If name <> "" Then
                     names = Split(name, ",")
-                    For n = LBound(names) To UBound(names)
-                        ' verify the Guide is qualified - todo
-                        With courses.Items(courses.Count)
+                    For N = LBound(names) To UBound(names)
+                        ' verify the Guide is qualified
+                        With courses.Items(courses.count)
                             .GuideCount = .GuideCount + 1
-                            .Guides(.GuideCount).name = Trim(names(n))
+                            .Guides(.GuideCount).name = BTrim(names(N))
                             
                             
                             
-                            If Not InstructorHasQualifications(.Guides(.GuideCount).name, Trim(curr.Cells(row, 1))) Then
+                            If Not InStr(defQ, BTrim(curr.Cells(row, 1))) > 0 And _
+                                Not InstructorHasQualifications(.Guides(.GuideCount).name, BTrim(curr.Cells(row, 1))) Then
                                 If Instructor2ID(.Guides(.GuideCount).name) = 0 Then
                                     'guide does not exits
-                                    HebMsgBox FormatString(10, .Guides(.GuideCount).name)
+                                    errStr = addErr(errStr, FormatString(10, .Guides(.GuideCount).name))
                                 Else
-                                    HebMsgBox FormatString(11, .Guides(.GuideCount).name, curr.Cells(row, 1))
+                                    errStr = addErr(errStr, FormatString(11, .Guides(.GuideCount).name, curr.Cells(row, 1)))
                                 End If
                             End If
                             
-                            .Guides(.GuideCount).Color = curr.Cells(row, 1).Interior.ColorIndex
+                            .Guides(.GuideCount).color = curr.Cells(row, 1).Interior.ColorIndex
+                            .Guides(.GuideCount).additionalColor = getAdditionalColor(.Guides(.GuideCount).color)
                         End With
                     Next
                 End If
             Next
             
+             
             
         End If
         col = col + SkipCols - 1
     Next
     
+    If Len(errStr) > 0 Then
+      HebMsgBox errStr
+    End If
+    
+    
 End Function
 
- 
+Function getAdditionalColor(color As Integer) As Integer
+    Dim addColor As String
+    addColor = GetParam("AdditionalColor" + CStr(color))
+    If Len(addColor) > 0 Then
+        getAdditionalColor = CInt(addColor)
+        Exit Function
+    End If
+    getAdditionalColor = -1
+End Function
+
+ Function addErr(ByRef str As String, newErr As String)
+    If InStr(str, newErr) <= 0 Then
+        addErr = str + IIf(Len(str) > 0, vbLf, "") + newErr
+    Else
+        addErr = str
+    End If
+ End Function
 
 Sub Facilities2UI(ByRef facilities As List, curr As Worksheet)
     Dim col As Integer
+    On Error Resume Next
+    Application.ScreenUpdating = False
 
    'cleanup facility
     Dim facilityRange As Range
@@ -357,7 +402,7 @@ Sub Facilities2UI(ByRef facilities As List, curr As Worksheet)
     
     
     For col = 1 To UBound(facHeaders)
-             facilityRange.Cells(HEADER_ROW, col).Value = facHeaders(col)
+        facilityRange.Cells(HEADER_ROW, col).value = facHeaders(col)
     Next
     
     
@@ -365,15 +410,19 @@ Sub Facilities2UI(ByRef facilities As List, curr As Worksheet)
     Dim timeSlotRange As Range
     Dim i As Integer, j As Integer
     'print to sheet the facility
-    For i = 1 To facilities.Count
-    
-          For j = 1 To UBound(facHeaders)
+    For i = 1 To facilities.count
+        col = -1
+        For j = 1 To UBound(facHeaders)
             If facHeaders(j) = facilities.Items(i).name Then
                 col = j
                 Exit For
             End If
         Next
     
+        If col = -1 Then
+            HebMsgBox FormatString(15, facilities.Items(i).name, location)
+            Exit Sub
+        End If
         
         'facilityRange.Cells(HEADER_ROW, col).Value = facilities.Items(col).Name
         
@@ -382,33 +431,91 @@ Sub Facilities2UI(ByRef facilities As List, curr As Worksheet)
                 Set timeSlotRange = facilityRange.Range( _
                     facilityRange.Parent.Cells(HOURS_START_ROW + .StartSlot, col), _
                     facilityRange.Parent.Cells(HOURS_START_ROW + .StartSlot + .length - 1, col))
-
-                timeSlotRange.Cells(1, 1).Value = CourseID2Name(.ID)
+                addFacility2Cell timeSlotRange.Cells(1, 1), CourseID2Name(.ID)
+                 
                 'timeSlotRange.Select
-                timeSlotRange.Merge False
-                timeSlotRange.HorizontalAlignment = xlCenter
-                timeSlotRange.VerticalAlignment = xlCenter
-                timeSlotRange.Interior.ColorIndex = .Color
+                 formatRange timeSlotRange, .color
                 
             End With
             
         Next
     Next
- 
+   Application.ScreenUpdating = True
+
+
 End Sub
 
 
+Sub addFacility2Cell(cell As Range, value As String)
+    If Len(cell.value) > 0 Then
+        cell.value = cell.value + vbLf + "+" + vbLf + value
+        cell.AddComment FormatString(14)
+    Else
+        cell.value = value
+    End If
+End Sub
+
+Sub formatRange(r As Range, color As Integer)
+    On Error Resume Next
+    Application.DisplayAlerts = False
+    Dim isOverlapRange As Boolean
+    With r
+        isOverlapRange = isOverlap(r)
+        
+        
+        If Not isOverlapRange Then
+            .Merge False
+        End If
+         .HorizontalAlignment = xlCenter
+        .VerticalAlignment = xlCenter
+        .Interior.ColorIndex = color
+        .WrapText = True
+        If isOverlapRange Then
+            .Cells(1, 1).Borders.ColorIndex = 3
+            .Cells(1, 1).Borders.Weight = xlThick
+        Else
+            .Borders.ColorIndex = 0
+            .Borders.Weight = xlThin
+        End If
+        .Borders.LineStyle = xlContinuous
+        
+        
+        If InStr(.Cells(1, 1), "+") > 0 Then
+            .Font.Size = 6
+        End If
+        
+    End With
+     
+     
+    Application.DisplayAlerts = True
+    
+End Sub
+
+Function isOverlap(r As Range) As Boolean
+    Dim i As Integer, j As Integer, count As Integer
+    
+    For i = 1 To r.Rows.count
+        For j = 1 To r.Columns.count
+            If BTrim(r.Cells(i, j).value) <> "" Then
+                count = count + 1
+            End If
+        Next
+    Next
+    isOverlap = (count > 1)
+End Function
 
 Function Courses2Facilities(ByRef courses As List, ByRef facilities As List) As String
     Dim i As Integer, j As Integer, facilityIndex, k As Integer
     Dim newSlot As TimeSlot
-    For i = 1 To courses.Count
+    Dim errStr As String
+    
+    For i = 1 To courses.count
         For j = 1 To courses.Items(i).SlotCount
             facilityIndex = getFacilityIndex(facilities, courses.Items(i).TimeSlots(j).ID)
             If facilityIndex = 0 Then 'not found
                 MyReDim facilities
-                facilities.Count = facilities.Count + 1
-                facilityIndex = facilities.Count
+                facilities.count = facilities.count + 1
+                facilityIndex = facilities.count
             End If
              
              With facilities.Items(facilityIndex)
@@ -418,11 +525,14 @@ Function Courses2Facilities(ByRef courses As List, ByRef facilities As List) As 
                 For k = 1 To .SlotCount
                     With .TimeSlots(k)
                         's = .TimeSlots(k)
-                        If (newSlot.StartSlot >= .StartSlot And newSlot.StartSlot <= .StartSlot + .length) Or _
-                           (newSlot.StartSlot + newSlot.length >= .StartSlot And newSlot.StartSlot + newSlot.length <= .StartSlot + .length) Then
-                            'conflict
-                             Courses2Facilities = FormatString(2, courses.Items(i).name, FacilityID2Name(newSlot.ID), CourseID2Name(.ID))
-                             Exit Function
+                        If ((newSlot.StartSlot >= .StartSlot And newSlot.StartSlot < .StartSlot + .length) Or _
+                           (newSlot.StartSlot + newSlot.length > .StartSlot And newSlot.StartSlot + newSlot.length <= .StartSlot + .length)) Then
+                            If newSlot.StartSlot = .StartSlot And newSlot.length = .length And (newSlot.Shared Or .Shared) Then
+                                'same start time and same length and one is defined shared. so it is OK
+                            Else
+                                'conflic
+                                errStr = addErr(errStr, FormatString(2, courses.Items(i).name, FacilityID2Name(newSlot.ID), CourseID2Name(.ID)))
+                            End If
                         End If
                     End With
                 Next
@@ -439,6 +549,7 @@ Function Courses2Facilities(ByRef courses As List, ByRef facilities As List) As 
         Next
     Next
     
+    Courses2Facilities = errStr
     
 End Function
 
@@ -448,7 +559,7 @@ End Function
 
 Function getFacilityIndex(facilities As List, facilityID As Integer) As Integer
     Dim i As Integer
-    For i = 1 To facilities.Count
+    For i = 1 To facilities.count
         If facilities.Items(i).ID = facilityID Then
             getFacilityIndex = i
             Exit Function
@@ -457,6 +568,8 @@ Function getFacilityIndex(facilities As List, facilityID As Integer) As Integer
     getFacilityIndex = 0
         
 End Function
+
+
 
 
 

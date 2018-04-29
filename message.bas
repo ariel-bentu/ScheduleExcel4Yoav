@@ -47,9 +47,9 @@ Public Function GetParam(name As String) As String
     Dim i As Integer
     i = 0
     Set settings = ThisWorkbook.Sheets("Settings")
-    While settings.Cells(ROW_SETTINGS + i, 1).Value <> ""
-        If settings.Cells(ROW_SETTINGS + i, 1).Value = name Then
-            GetParam = settings.Cells(ROW_SETTINGS + i, 2).Value
+    While settings.Cells(ROW_SETTINGS + i, 1).value <> ""
+        If settings.Cells(ROW_SETTINGS + i, 1).value = name Then
+            GetParam = settings.Cells(ROW_SETTINGS + i, 2).value
             Exit Function
         End If
         i = i + 1

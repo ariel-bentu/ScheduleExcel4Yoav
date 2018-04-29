@@ -49,11 +49,11 @@ Sub initMasterData()
             HebMsgBox FormatString(12, Err.Description)
             Exit Sub
         End If
-        While s.Cells(row, 2) <> ""
+        While BTrim(s.Cells(row, 2)) <> ""
             With facilities(row - 1)
-                .location = s.Cells(row, 1).Value
-                .name = s.Cells(row, 2).Value
-                .Group = s.Cells(row, 3).Value
+                .location = BTrim(s.Cells(row, 1).value)
+                .name = BTrim(s.Cells(row, 2).value)
+                .Group = BTrim(s.Cells(row, 3).value)
             End With
             row = row + 1
         Wend
@@ -62,17 +62,17 @@ Sub initMasterData()
         
        row = 2
         Set s = MasterData.Sheets("Courses")
-        While s.Cells(row, 1) <> ""
-            courses(row) = s.Cells(row, 1).Value
+        While BTrim(s.Cells(row, 1)) <> ""
+            courses(row) = BTrim(s.Cells(row, 1).value)
             row = row + 1
         Wend
         CoursesCount = row - 1
         
         row = 2
         Set s = MasterData.Sheets("Instructors")
-        While s.Cells(row, 1) <> ""
-            instructors(row).name = s.Cells(row, 1).Value
-            instructors(row).qualifications = Split(s.Cells(row, 2).Value, ",")
+        While BTrim(s.Cells(row, 1)) <> ""
+            instructors(row).name = BTrim(s.Cells(row, 1).value)
+            instructors(row).qualifications = Split(s.Cells(row, 2).value, ",")
             
             row = row + 1
         Wend
@@ -85,6 +85,15 @@ Sub initMasterData()
     End If
     
 End Sub
+
+
+Public Function BTrim(txt As String) As String
+    txt = Trim(txt)
+    While InStr(txt, "  ") > 0
+        txt = Replace(txt, "  ", " ")
+    Wend
+    BTrim = txt
+End Function
 
 Public Function FacilityID2Name(ID As Integer) As String
     If ID < 1 Then
@@ -123,7 +132,7 @@ Public Function InstructorHasQualifications(name As String, qualification As Str
     InstructorHasQualifications = False
     
     For i = 1 To InstructorsCount
-            If instructors(i).name = Trim(name) Then
+            If instructors(i).name = BTrim(name) Then
                 For j = LBound(instructors(i).qualifications) To UBound(instructors(i).qualifications)
                     If InStr(instructors(i).qualifications(j), qualification) > 0 Then
                         InstructorHasQualifications = True
@@ -139,7 +148,7 @@ End Function
 Public Function Instructor2ID(name As String) As Integer
     Dim i As Integer
     For i = 1 To InstructorsCount
-            If instructors(i).name = Trim(name) Then
+            If instructors(i).name = BTrim(name) Then
                 Instructor2ID = i
                 Exit Function
             End If
@@ -198,7 +207,7 @@ Public Function FacilityName2ID(name As String) As Integer
         name = Left(name, pos - 1)
     End If
 
-    name = Trim(name)
+    name = BTrim(name)
     For i = 1 To FacilitiesCount
         If facilities(i).name = name Then
             'check if it is really a facility and not lunch etc.
@@ -226,7 +235,7 @@ End Function
 Public Function CourseName2ID(name As String) As Integer
    initMasterData
    Dim i As Integer
-   name = Trim(name)
+   name = BTrim(name)
    row = 1
     For i = 1 To CoursesCount
         If courses(i) = name Then
