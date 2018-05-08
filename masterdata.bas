@@ -1,17 +1,18 @@
 Attribute VB_Name = "MasterData"
-
-'MASTER DATA
+'Version 1.1
 
 Type Facility
     name As String
     location As String
     Group As String
+    color As Integer
     ID As Integer
 End Type
 
 Type Instructor
     name As String
     qualifications() As String
+    
 End Type
 
 
@@ -29,6 +30,7 @@ Dim masterDataTimeStamp As Single
 
 
 Sub initMasterData()
+
     'cache for 60 seconds
     If masterDataTimeStamp + 60 > Timer Then Exit Sub
 
@@ -49,34 +51,40 @@ Sub initMasterData()
             HebMsgBox FormatString(12, Err.Description)
             Exit Sub
         End If
+        
+        FacilitiesCount = 0
         While BTrim(s.Cells(row, 2)) <> ""
-            With facilities(row - 1)
+            FacilitiesCount = FacilitiesCount + 1
+            With facilities(FacilitiesCount)
                 .location = BTrim(s.Cells(row, 1).value)
                 .name = BTrim(s.Cells(row, 2).value)
                 .Group = BTrim(s.Cells(row, 3).value)
+                .color = s.Cells(row, 4).Interior.ColorIndex
             End With
             row = row + 1
         Wend
-        FacilitiesCount = row - 1
         
-        
-       row = 2
-        Set s = MasterData.Sheets("Courses")
-        While BTrim(s.Cells(row, 1)) <> ""
-            courses(row) = BTrim(s.Cells(row, 1).value)
-            row = row + 1
-        Wend
-        CoursesCount = row - 1
         
         row = 2
+        CoursesCount = 0
+        Set s = MasterData.Sheets("Courses")
+        While BTrim(s.Cells(row, 1)) <> ""
+            CoursesCount = CoursesCount + 1
+            courses(CoursesCount) = BTrim(s.Cells(row, 1).value)
+            row = row + 1
+        Wend
+        
+        
+        row = 2
+        InstructorsCount = 0
         Set s = MasterData.Sheets("Instructors")
         While BTrim(s.Cells(row, 1)) <> ""
-            instructors(row).name = BTrim(s.Cells(row, 1).value)
-            instructors(row).qualifications = Split(s.Cells(row, 2).value, ",")
+            InstructorsCount = InstructorsCount + 1
+            instructors(InstructorsCount).name = BTrim(s.Cells(row, 1).value)
+            instructors(InstructorsCount).qualifications = Split(s.Cells(row, 2).value, ",")
             
             row = row + 1
         Wend
-        InstructorsCount = row - 1
         
     
         
@@ -85,7 +93,6 @@ Sub initMasterData()
     End If
     
 End Sub
-
 
 Public Function BTrim(txt As String) As String
     txt = Trim(txt)
@@ -103,6 +110,25 @@ Public Function FacilityID2Name(ID As Integer) As String
     initMasterData
     FacilityID2Name = facilities(ID).name
 End Function
+
+Public Function FacilityID2Color(ID As Integer) As Integer
+    If ID < 1 Then
+        FacilityID2Color = 0
+        Exit Function
+    End If
+    initMasterData
+    FacilityID2Color = facilities(ID).color
+End Function
+
+
+Public Function FacilityName2Color(name As String) As Integer
+    Dim ID As String
+    ID = FacilityName2ID(name)
+    If ID >= -1 Then
+        FacilityName2Color = facilities(ID).color
+    End If
+End Function
+
 
 Public Function Facility2GroupName(ID As Integer) As String
     If ID < 1 Then
@@ -173,6 +199,7 @@ Public Function GetFacilities(location As String) As Variant
                 ReDim Preserve res(UBound(res) + 1)
             End If
             res(UBound(res)) = facilities(i).name
+
         End If
     Next
     

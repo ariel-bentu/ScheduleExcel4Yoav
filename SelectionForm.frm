@@ -16,25 +16,36 @@ Attribute VB_Exposed = False
 
 Private m_currCell As Range
 Private m_items() As String
+Private m_functionPtr As String
+Private m_multiSelect As Boolean
 
+'Version 1.1
 
 Sub Clear()
     lsValues.Clear
 End Sub
 
-Public Sub InitOnce(txtAdd As String, title As String)
+Public Sub InitOnce(txtAdd As String, title As String, isSharedLbl As String)
     Me.Caption = "Select..."
     lblAdditionalText = txtAdd
+    chkShare.Caption = isSharedLbl
 End Sub
 
-Public Sub Load(title As String, targetCell As Range, values As Variant)
+Public Sub Load(title As String, functionPtr As String, value As String, values As Variant, displayShare As Boolean, multiSelect As Boolean)
     Clear
     SetTitle title
+    m_functionPtr = functionPtr
+    m_multiSelect = multiSelect
+
+    lsValues.ColumnCount = 2
+    lsValues.ColumnWidths = "90;10"
+    
+    lsValues.multiSelect = IIf(multiSelect, fmMultiSelectMulti, fmMultiSelectSingle)
     
     m_items = values
+    chkShare.Visible = displayShare
     
-    
-    SetCellTarget targetCell
+    SetValue value
     FilterItems
     Me.Show
 End Sub
@@ -47,29 +58,53 @@ End Sub
 Sub FilterItems()
 
     lsValues.Clear
+    
+    Dim val() As String
+    If m_multiSelect And Len(txtItem.text) > 0 Then
+     val = Split(BTrim(txtItem.text), ",")
+    Else
+        ReDim val(1 To 1)
+        val(1) = BTrim(txtItem.text)
+    End If
+    
     For i = LBound(m_items) To UBound(m_items)
-        If (InStr(Trim(m_items(i)), Trim(txtItem.text)) = 1) Then
-            lsValues.AddItem m_items(i)
-        End If
+        For j = LBound(val) To UBound(val)
+            If (InStr(BTrim(m_items(i)), BTrim(val(j))) = 1) Then
+                lsValues.AddItem m_items(i)
+                If BTrim(m_items(i)) = BTrim(val(j)) Then
+                    'exact match - select the item
+                    lsValues.Selected(lsValues.ListCount - 1) = True
+                End If
+                Exit For
+            End If
+        Next
     Next
  
 End Sub
 
- Sub SetCellTarget(cell As Range)
-    Set m_currCell = cell
+ Sub SetValue(value As String)
     Dim pos As Integer
+    Dim val As String
+    val = value
     
-    If Left(cell.Value, 1) = "*" Then
+    If Left(val, 1) = SHARE_SIGN Then
+        chkShare.value = True
+        val = Right(val, Len(val) - 1)
+    Else
+        chkShare.value = False
+    End If
+    
+    If Left(val, 1) = "*" Then
         txtItem = ""
-        txtAdditionalText = Right(cell.Value, Len(cell.Value) - 1)
+        txtAdditionalText = Right(val, Len(val) - 1)
     Else
         
-        pos = InStr(cell.Value, vbLf)
+        pos = InStr(val, vbLf)
         If pos > 0 Then
-            txtItem = Trim(Left(cell.Value, pos - 1))
-            txtAdditionalText = Trim(Right(cell.Value, Len(cell.Value) - pos))
+            txtItem = BTrim(Left(val, pos - 1))
+            txtAdditionalText = BTrim(Right(val, Len(val) - pos))
         Else
-            txtItem = Trim(cell.Value)
+            txtItem = BTrim(val)
             txtAdditionalText = ""
         End If
     End If
@@ -80,21 +115,20 @@ Private Sub cmdCancel_Click()
 End Sub
 
 Private Sub cmdOK_Click()
-    If Selection.Rows.Count > 1 Then
-        Selection.Merge False
-        Selection.HorizontalAlignment = xlCenter
-        Selection.VerticalAlignment = xlCenter
+    Dim val As String
+    
+    If m_multiSelect Then
+        For i = 0 To lsValues.ListCount - 1
+            If lsValues.Selected(i) Then
+                val = val + IIf(Len(val) > 0, ", ", "") + lsValues.list(i)
+            End If
+        Next
+    Else
+        val = BTrim(txtItem.text)
     End If
 
-    m_currCell.Value = IIf(Len(Trim(txtItem)) > 0, Trim(txtItem), "")
-    If (Len(Trim(txtAdditionalText)) > 0) Then
-        If Len(m_currCell.Value) > 0 Then
-            m_currCell.Value = m_currCell.Value + vbLf
-        Else
-            m_currCell.Value = "*"
-        End If
-        m_currCell.Value = m_currCell.Value + Trim(txtAdditionalText)
-    End If
+    
+    Application.Run m_functionPtr, val, chkShare.value, BTrim(txtAdditionalText)
    
     Me.Hide
 End Sub
@@ -102,9 +136,10 @@ End Sub
 
 
 Private Sub lsValues_Click()
-    txtItem = lsValues.List(lsValues.ListIndex)
+    txtItem = lsValues.list(lsValues.ListIndex)
 End Sub
 
 Private Sub txtItem_Change()
  FilterItems
 End Sub
+

@@ -1,6 +1,6 @@
 Attribute VB_Name = "Main"
 Option Explicit
-'Version 1.0
+'Version 1.1
 
 
 Public Const HEADER_ROW = 1
@@ -53,15 +53,15 @@ End Type
 
 
 
-Public Type List
+Public Type list
     count As Integer
     Items() As Item
 End Type
 
 
 Sub UpdateSheet(ByRef theSheet As Worksheet)
-    Dim courses As List
-    Dim facilities As List
+    Dim courses As list
+    Dim facilities As list
     Dim errStr As String
     
     errStr = UI2Courses(courses, theSheet)
@@ -84,7 +84,39 @@ Sub UpdateSheet(ByRef theSheet As Worksheet)
     Facilities2UI facilities, theSheet
 End Sub
 
-Sub CalculateInstructorsTotals(ByRef courses As List)
+Function GetQualifiedInstructors(in_list As Variant, qualification As String) As Variant
+    Dim i As Integer, count As Integer
+    Dim defQ As String
+    Dim list() As String
+    list = in_list
+    
+    defQ = GetParam("Default Q")
+    
+    For i = LBound(list) To UBound(list)
+        If InStr(defQ, qualification) > 0 Or InstructorHasQualifications(list(i), qualification) Then
+            count = count + 1
+        Else
+            list(i) = ""
+        End If
+    Next
+    
+    Dim res() As String
+    ReDim res(1 To count + 1)
+    count = 0
+    
+    For i = LBound(list) To UBound(list)
+        If list(i) <> "" Then
+            count = count + 1
+            res(count) = list(i)
+        End If
+    Next
+    
+   GetQualifiedInstructors = res
+    
+    
+End Function
+
+Sub CalculateInstructorsTotals(ByRef courses As list)
     
     Dim i As Integer, j As Integer
     Dim slot As Integer, index As Integer
@@ -112,7 +144,7 @@ Sub CalculateInstructorsTotals(ByRef courses As List)
 End Sub
 
 
-Sub CalculateFacilitiesTotals(ByRef courses As List)
+Sub CalculateFacilitiesTotals(ByRef courses As list)
     Dim groupName As String
     Dim i, j, index As Integer
     
@@ -134,7 +166,7 @@ Sub CalculateFacilitiesTotals(ByRef courses As List)
     Next
 End Sub
 
-Sub Totals2UI(ByRef theList As List, ByRef curr As Worksheet)
+Sub Totals2UI(ByRef theList As list, ByRef curr As Worksheet)
     Dim i As Integer, col As Integer, length As Integer
     Dim r As Range
     On Error Resume Next
@@ -200,7 +232,7 @@ Function getTotalIndex(key As String, Totals As TotalList) As Integer
     getTotalIndex = -1
 End Function
 
-Sub MyReDim(ByRef l As List)
+Sub MyReDim(ByRef l As list)
 
     Dim newSize As Integer
     On Error Resume Next
@@ -238,7 +270,7 @@ Public Sub HideGAP(ByRef curr As Worksheet)
 
 End Sub
 
-Function UI2Courses(ByRef courses As List, ByRef curr As Worksheet) As String
+Function UI2Courses(ByRef courses As list, ByRef curr As Worksheet) As String
     Dim col, row As Integer
     Dim headerVal As String, facilityName As String
     Dim ma As Range
@@ -380,7 +412,7 @@ End Function
     End If
  End Function
 
-Sub Facilities2UI(ByRef facilities As List, curr As Worksheet)
+Sub Facilities2UI(ByRef facilities As list, curr As Worksheet)
     Dim col As Integer
     On Error Resume Next
     Application.ScreenUpdating = False
@@ -504,7 +536,7 @@ Function isOverlap(r As Range) As Boolean
     isOverlap = (count > 1)
 End Function
 
-Function Courses2Facilities(ByRef courses As List, ByRef facilities As List) As String
+Function Courses2Facilities(ByRef courses As list, ByRef facilities As list) As String
     Dim i As Integer, j As Integer, facilityIndex, k As Integer
     Dim newSlot As TimeSlot
     Dim errStr As String
@@ -557,7 +589,7 @@ Function getHour(index As Integer) As String
     getHour = ""
 End Function
 
-Function getFacilityIndex(facilities As List, facilityID As Integer) As Integer
+Function getFacilityIndex(facilities As list, facilityID As Integer) As Integer
     Dim i As Integer
     For i = 1 To facilities.count
         If facilities.Items(i).ID = facilityID Then
