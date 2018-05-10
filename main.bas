@@ -3,6 +3,7 @@ Option Explicit
 'Version $Id$
 
 
+
 Public Const HEADER_ROW = 1
 Public Const HOURS_START_ROW = 6
 Public Const FACILITY_OFFSET = 100
