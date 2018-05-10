@@ -1,6 +1,6 @@
 Attribute VB_Name = "Main"
 Option Explicit
-'Version 1.3
+'Version $Id$
 
 
 Public Const HEADER_ROW = 1
