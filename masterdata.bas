@@ -1,5 +1,5 @@
 Attribute VB_Name = "MasterData"
-'Version 1.1
+'Version 1.2
 
 Type Facility
     name As String
@@ -99,8 +99,27 @@ Public Function BTrim(txt As String) As String
     While InStr(txt, "  ") > 0
         txt = Replace(txt, "  ", " ")
     Wend
+    Dim c As String
+    'leading
+    c = Left(txt, 1)
+    While c = vbCr Or c = vbLf Or c = vbTab
+        txt = Right(txt, Len(txt) - 1)
+        c = Left(txt, 1)
+    Wend
+    
+    'trailing
+    c = Right(txt, 1)
+    While c = vbCr Or c = vbLf Or c = vbTab
+        txt = Right(txt, Len(txt) - 1)
+        c = Right(txt, 1)
+    Wend
+    
     BTrim = txt
 End Function
+
+
+
+
 
 Public Function FacilityID2Name(ID As Integer) As String
     If ID < 1 Then
@@ -124,7 +143,7 @@ End Function
 Public Function FacilityName2Color(name As String) As Integer
     Dim ID As String
     ID = FacilityName2ID(name)
-    If ID >= -1 Then
+    If ID > -1 Then
         FacilityName2Color = facilities(ID).color
     End If
 End Function

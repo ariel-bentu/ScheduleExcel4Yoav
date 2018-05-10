@@ -1,6 +1,6 @@
 Attribute VB_Name = "Main"
 Option Explicit
-'Version 1.1
+'Version 1.3
 
 
 Public Const HEADER_ROW = 1
@@ -10,7 +10,7 @@ Public Const ROW_SUMMARY_HOURS = 55
 Public Const ROW_SUMMARY_INSTRUCTORS = 56
 
 Public Const ROW_GUIDE_START = 40
-Public Const GUIDES_COUNT = 9
+Public Const GUIDES_COUNT = 11
 
 Public Const SHARE_SIGN = "+"
 
@@ -304,43 +304,52 @@ Function UI2Courses(ByRef courses As list, ByRef curr As Worksheet) As String
            
             For row = HOURS_START_ROW To HOURS_START_ROW + 31
                 Set ma = curr.Cells(row, col).MergeArea
-                facilityName = BTrim(ma.Cells(1, 1))
-                If Left(facilityName, 1) = SHARE_SIGN Then
-                    facilityName = Right(facilityName, Len(facilityName) - 1)
-                    isShared = True
-                Else
-                    isShared = False
-                End If
-                
-               If (facilityName <> "" And Left(facilityName, 1) <> "*") Then
-                    'add new slot to course
-                    Dim slot As TimeSlot
-               
-                    slot.ID = FacilityName2ID(facilityName)
-                    slot.SlotTitle = facilityName
-                    slot.Shared = isShared
-                    If (slot.ID = -1) Then
-                        UI2Courses = FormatString(1, facilityName)
-                        Exit Function
-                    End If
-                    If slot.ID > 0 Then
-                        slot.length = ma.Rows.count
-                        slot.color = ma.Interior.ColorIndex
-                        
-                        slot.StartSlot = row - HOURS_START_ROW
-                        With courses.Items(courses.count)
-                            .SlotCount = .SlotCount + 1
-                            .TimeSlots(.SlotCount) = slot
+                If ma.row = row Then
+                   facilityName = BTrim(ma.Cells(1, 1))
+                   If Left(facilityName, 1) = SHARE_SIGN Then
+                       facilityName = Right(facilityName, Len(facilityName) - 1)
+                       isShared = True
+                   Else
+                       isShared = False
+                   End If
+                   
+                  If (facilityName <> "" And Left(facilityName, 1) <> "*") Then
+                       'add new slot to course
+                       Dim slot As TimeSlot
+                  
+                       slot.ID = FacilityName2ID(facilityName)
+                       slot.SlotTitle = facilityName
+                       slot.Shared = isShared
+                       If (slot.ID = -1) Then
+                           UI2Courses = FormatString(1, facilityName, headerVal, CStr(row))
+                           Exit Function
+                       End If
+                       If slot.ID > 0 Then
+                           slot.length = ma.Rows.count
+                            If IsNull(ma.Interior.ColorIndex) Then
+                                ma.UnMerge
+                                ma.Merge False
+                            End If
+                            If Not IsNull(ma.Interior.ColorIndex) Then
+                                slot.color = ma.Interior.ColorIndex
+                            Else
+                                slot.color = ma.Interior.color
+                            End If
                             
-                        End With
-                        'Debug.Print "Facility " + facilityName + " (" + CStr(slot.ID) + ") :" + CStr(ma.Rows.Count)
-                    End If
-                    'HebMsgBox FormatString(1, ma.Cells(1, 1), CStr(ma.Cells.Count))
+                            slot.StartSlot = row - HOURS_START_ROW
+                           With courses.Items(courses.count)
+                               .SlotCount = .SlotCount + 1
+                               .TimeSlots(.SlotCount) = slot
+                               
+                           End With
+                           'Debug.Print "Facility " + facilityName + " (" + CStr(slot.ID) + ") :" + CStr(ma.Rows.Count)
+                       End If
+                       'HebMsgBox FormatString(1, ma.Cells(1, 1), CStr(ma.Cells.Count))
+       
     
- 
-                    row = row + ma.Rows.count - 1
+                       row = row + ma.Rows.count - 1
+                   End If
                 End If
-  
             Next
             
             Dim name As String
