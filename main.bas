@@ -1,6 +1,6 @@
 Attribute VB_Name = "Main"
 Option Explicit
-'Version $Id$
+'Version 1.3
 
 Public Const HEADER_ROW = 1
 Public Const HOURS_START_ROW = 6
@@ -275,7 +275,9 @@ Function UI2Courses(ByRef courses As list, ByRef curr As Worksheet) As String
     Dim ma As Range
     Dim SkipCols As Integer
     Dim isShared As Boolean
-   For col = 2 To 100
+    Dim errStr As String
+
+    For col = 2 To 100
         headerVal = curr.Cells(HEADER_ROW, col).value
         'Debug.Print headerVal
         
@@ -294,8 +296,7 @@ Function UI2Courses(ByRef courses As list, ByRef curr As Worksheet) As String
             courses.count = courses.count + 1
             courses.Items(courses.count).ID = CourseName2ID(headerVal)
             If courses.Items(courses.count).ID < 0 Then
-                UI2Courses = FormatString(3, headerVal)
-                Exit Function
+                errStr = addErr(errStr, FormatString(3, headerVal))
             End If
             courses.Items(courses.count).name = headerVal
              
@@ -320,8 +321,7 @@ Function UI2Courses(ByRef courses As list, ByRef curr As Worksheet) As String
                        slot.SlotTitle = facilityName
                        slot.Shared = isShared
                        If (slot.ID = -1) Then
-                           UI2Courses = FormatString(1, facilityName, headerVal, CStr(row))
-                           Exit Function
+                           errStr = addErr(errStr, FormatString(1, facilityName, headerVal, CStr(row)))
                        End If
                        If slot.ID > 0 Then
                            slot.length = ma.Rows.count
@@ -341,9 +341,7 @@ Function UI2Courses(ByRef courses As list, ByRef curr As Worksheet) As String
                                .TimeSlots(.SlotCount) = slot
                                
                            End With
-                           'Debug.Print "Facility " + facilityName + " (" + CStr(slot.ID) + ") :" + CStr(ma.Rows.Count)
                        End If
-                       'HebMsgBox FormatString(1, ma.Cells(1, 1), CStr(ma.Cells.Count))
        
     
                        row = row + ma.Rows.count - 1
@@ -358,7 +356,6 @@ Function UI2Courses(ByRef courses As list, ByRef curr As Worksheet) As String
             'extract Guides
             Dim defQ As String
             defQ = GetParam("Default Q")
-            Dim errStr As String
             For row = ROW_GUIDE_START To ROW_GUIDE_START + GUIDES_COUNT
                 Set ma = curr.Cells(row, col).MergeArea
                 name = ma.Cells(1, 1)
@@ -551,41 +548,42 @@ Function Courses2Facilities(ByRef courses As list, ByRef facilities As list) As 
     
     For i = 1 To courses.count
         For j = 1 To courses.Items(i).SlotCount
-            facilityIndex = getFacilityIndex(facilities, courses.Items(i).TimeSlots(j).ID)
-            If facilityIndex = 0 Then 'not found
-                MyReDim facilities
-                facilities.count = facilities.count + 1
-                facilityIndex = facilities.count
-            End If
-             
-             With facilities.Items(facilityIndex)
-             
-                'makes sure no conflicting slots
-                newSlot = courses.Items(i).TimeSlots(j)
-                For k = 1 To .SlotCount
-                    With .TimeSlots(k)
-                        's = .TimeSlots(k)
-                        If ((newSlot.StartSlot >= .StartSlot And newSlot.StartSlot < .StartSlot + .length) Or _
-                           (newSlot.StartSlot + newSlot.length > .StartSlot And newSlot.StartSlot + newSlot.length <= .StartSlot + .length)) Then
-                            If newSlot.StartSlot = .StartSlot And newSlot.length = .length And (newSlot.Shared Or .Shared) Then
-                                'same start time and same length and one is defined shared. so it is OK
-                            Else
-                                'conflic
-                                errStr = addErr(errStr, FormatString(2, courses.Items(i).name, FacilityID2Name(newSlot.ID), CourseID2Name(.ID)))
+            If (courses.Items(i).TimeSlots(j).ID <> -1) Then
+                facilityIndex = getFacilityIndex(facilities, courses.Items(i).TimeSlots(j).ID)
+                If facilityIndex = 0 Then 'not found
+                    MyReDim facilities
+                    facilities.count = facilities.count + 1
+                    facilityIndex = facilities.count
+                End If
+                 
+                 With facilities.Items(facilityIndex)
+                 
+                    'makes sure no conflicting slots
+                    newSlot = courses.Items(i).TimeSlots(j)
+                    For k = 1 To .SlotCount
+                        With .TimeSlots(k)
+                            's = .TimeSlots(k)
+                            If ((newSlot.StartSlot >= .StartSlot And newSlot.StartSlot < .StartSlot + .length) Or _
+                               (newSlot.StartSlot + newSlot.length > .StartSlot And newSlot.StartSlot + newSlot.length <= .StartSlot + .length)) Then
+                                If newSlot.StartSlot = .StartSlot And newSlot.length = .length And (newSlot.Shared Or .Shared) Then
+                                    'same start time and same length and one is defined shared. so it is OK
+                                Else
+                                    'conflic
+                                    errStr = addErr(errStr, FormatString(2, courses.Items(i).name, FacilityID2Name(newSlot.ID), CourseID2Name(.ID)))
+                                End If
                             End If
-                        End If
-                    End With
-                Next
-             
-             
-                 .ID = courses.Items(i).TimeSlots(j).ID
-                 .name = FacilityID2Name(courses.Items(i).TimeSlots(j).ID)
-                 .SlotCount = .SlotCount + 1
-                 .TimeSlots(.SlotCount) = courses.Items(i).TimeSlots(j)
-                 'fix id to be course id instead of facility id
-                 .TimeSlots(.SlotCount).ID = courses.Items(i).ID
-             End With
-        
+                        End With
+                    Next
+                 
+                 
+                     .ID = courses.Items(i).TimeSlots(j).ID
+                     .name = FacilityID2Name(courses.Items(i).TimeSlots(j).ID)
+                     .SlotCount = .SlotCount + 1
+                     .TimeSlots(.SlotCount) = courses.Items(i).TimeSlots(j)
+                     'fix id to be course id instead of facility id
+                     .TimeSlots(.SlotCount).ID = courses.Items(i).ID
+                 End With
+            End If
         Next
     Next
     
