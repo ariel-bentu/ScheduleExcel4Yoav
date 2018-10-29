@@ -565,7 +565,9 @@ Function Courses2Facilities(ByRef courses As list, ByRef facilities As list) As 
                             's = .TimeSlots(k)
                             If ((newSlot.StartSlot >= .StartSlot And newSlot.StartSlot < .StartSlot + .length) Or _
                                (newSlot.StartSlot + newSlot.length > .StartSlot And newSlot.StartSlot + newSlot.length <= .StartSlot + .length)) Then
-                                If newSlot.StartSlot = .StartSlot And newSlot.length = .length And (newSlot.Shared Or .Shared) Then
+                                'If newSlot.StartSlot = .StartSlot And newSlot.length = .length And (newSlot.Shared Or .Shared) Then
+                                'Yoav asked to allow any overlap if makred shared
+                                If newSlot.Shared Or .Shared Then
                                     'same start time and same length and one is defined shared. so it is OK
                                 Else
                                     'conflic

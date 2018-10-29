@@ -17,12 +17,12 @@ End Type
 
 
 Dim MasterData As Workbook
-Private facilities(200) As Facility
+Private facilities(1000) As Facility
 Private FacilitiesCount As Integer
-Private courses(200) As String
+Private courses(1000) As String
 Private CoursesCount As Integer
 
-Private instructors(200) As Instructor
+Private instructors(1000) As Instructor
 Private InstructorsCount As Integer
 
 
